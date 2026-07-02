@@ -49,6 +49,28 @@ SAVE_EPS = False
 # Based on 3GPP TR 38.887 traffic model for mMTC
 UNIFORM_PACKET_PROB = 1 / 15
 
+# Module exports
+__all__ = [
+    # Global constants
+    'SAVE_EPS',
+    'UNIFORM_PACKET_PROB',
+    # RACH Message classes
+    'RACHMessages',
+    'RACHState',
+    'RACHFailureReason',
+    # Plotting functions
+    'setup_plot_style',
+    'save_high_quality_plot',
+    'plot_success_rate_comparison',
+    'plot_collision_probability',
+    'plot_traffic_composition',
+    'plot_preamble_allocation',
+    'plot_delay_ecdf',
+    'plot_utilization_metrics',
+    'plot_mean_delay_per_slot',
+    'plot_min_required_preambles',
+]
+
 # ============================
 # 3GPP RACH Message Definitions (TS 38.321, TS 38.213)
 # ============================
