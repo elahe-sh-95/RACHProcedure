@@ -42,8 +42,121 @@ LowDelay patch:
 # Global knobs
 # ============================
 
-UNIFORM_PACKET_PROB = 1 / 15
+# Save EPS format for plots (vector graphics for publications)
 SAVE_EPS = False
+
+# Uniform packet arrival probability per subframe (1/15 ≈ 0.067)
+# Based on 3GPP TR 38.887 traffic model for mMTC
+UNIFORM_PACKET_PROB = 1 / 15
+
+# ============================
+# 3GPP RACH Message Definitions (TS 38.321, TS 38.213)
+# ============================
+# The 4-step Random Access Channel (RACH) procedure consists of:
+# MSG1: Random Access Preamble transmission (PRACH)
+# MSG2: Random Access Response (RAR) - includes Timing Advance, UL grant, TC-RNTI
+# MSG3: Scheduled Uplink Transmission (RRC Connection Request, SR, BSR)
+# MSG4: Contention Resolution Message (Contention Resolution ID, C-RNTI assignment)
+
+class RACHMessages:
+    """
+    3GPP NR RACH Message Types and Parameters
+    Reference: 3GPP TS 38.321 (MAC), TS 38.213 (Physical Layer Procedures)
+    """
+    
+    # MSG1: Random Access Preamble
+    class MSG1:
+        NAME = "MSG1"
+        DESCRIPTION = "Random Access Preamble Transmission on PRACH"
+        # Preamble formats (0-4 for FR1, A1-A3, B1-B4 for FR2)
+        PREAMBLE_FORMATS = [0, 1, 2, 3, 4, 'A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'B4']
+        # Number of preambles per cell (64 total, split between contention-based and contention-free)
+        TOTAL_PREAMBLES = 64
+        # Contention-based preambles (typically 54, leaving 10 for CFRA)
+        CB_PREAMBLES = 54
+        # Power ramping counter max
+        PREAMBLE_TRANSMISSION_MAX = 10  # preambleTransMax
+        # Power ramping step (dB)
+        POWER_RAMPING_STEP = [0, 2, 4, 6]  # powerRampingStep
+        # Preamble received target power (dBm)
+        PREAMBLE_RECEIVED_TARGET_POWER = -104  # preambleReceivedTargetPower
+        
+    # MSG2: Random Access Response (RAR)
+    class MSG2:
+        NAME = "MSG2"
+        DESCRIPTION = "Random Access Response (RAR) on PDSCH"
+        # RAR window size (subframes/slots)
+        RAR_WINDOW_SIZE = [1, 2, 4, 8, 10, 20, 40, 80]  # ra-ResponseWindow
+        # Default RAR window (slots)
+        DEFAULT_RAR_WINDOW = 10
+        # MAC RAR payload size (bytes)
+        RAR_PAYLOAD_SIZE = 28  # Includes RAPID, TA, UL Grant, TC-RNTI
+        # Timing Advance command size (bits)
+        TA_COMMAND_BITS = 12
+        # UL Grant size (bits)
+        UL_GRANT_BITS = 27
+        # TC-RNTI (Temporary Cell RNTI) size (bits)
+        TC_RNTI_BITS = 16
+        # Backoff Indicator (BI) values in ms
+        BACKOFF_INDICATOR_VALUES = [0, 10, 20, 30, 40, 60, 80, 120, 160, 240, 320, 480, 960, 1920]
+        
+    # MSG3: Scheduled Uplink Transmission
+    class MSG3:
+        NAME = "MSG3"
+        DESCRIPTION = "First Scheduled Uplink Transmission on PUSCH"
+        # Minimum payload size (bytes) - RRC Setup Request
+        MIN_PAYLOAD_SIZE = 48  # bits = 6 bytes
+        # Maximum payload for initial access (bytes)
+        MAX_PAYLOAD_SIZE = 80  # Typical for RRCSetupRequest + NAS
+        # HARQ retransmissions max
+        MAX_HARQ_RETX = 4  # maxHARQ-Tx
+        # MCS table for MSG3
+        MCS_TABLE = "64QAM"  # Can be QPSK, 16QAM, 64QAM
+        # Time resource allocation
+        TIME_RESOURCE_ALLOCATION = 0  # K2 offset
+        # Frequency hopping enabled
+        FREQUENCY_HOPPING = False
+        
+    # MSG4: Contention Resolution
+    class MSG4:
+        NAME = "MSG4"
+        DESCRIPTION = "Contention Resolution Message on PDSCH"
+        # Contention Resolution Timer (slots)
+        CR_TIMER = 8  # ra-ContentionResolutionTimer
+        # Contention Resolution ID size (bits) - typically first 48 bits of MSG3
+        CR_ID_BITS = 48
+        # C-RNTI assignment included
+        C_RNTI_ASSIGNMENT = True
+        # RRC Setup message typical size (bytes)
+        RRC_SETUP_SIZE = 100
+        
+
+# ============================
+# RACH Procedure States
+# ============================
+
+class RACHState:
+    """3GPP RACH Procedure State Machine"""
+    IDLE = 0                    # No RACH procedure ongoing
+    MSG1_PENDING = 1            # Waiting to transmit preamble
+    MSG1_SENT = 2               # Preamble transmitted, waiting for RAR
+    MSG2_RECEIVED = 3           # RAR received, preparing MSG3
+    MSG3_PENDING = 4            # Waiting to transmit MSG3
+    MSG3_SENT = 5               # MSG3 transmitted, waiting for contention resolution
+    MSG4_PENDING = 6            # Waiting for MSG4 (contention resolution)
+    CONTENTION_RESOLVED = 7     # Success - RACH complete
+    FAILURE = 8                 # RACH failure (max retries exceeded)
+    
+
+# RACH Failure Reasons (3GPP TS 38.321)
+class RACHFailureReason:
+    PREAMBLE_MAX_RETX = "PREAMBLE_MAX_RETX"      # Reached max preamble transmissions
+    RAR_TIMEOUT = "RAR_TIMEOUT"                   # No RAR received within window
+    MSG3_MAX_HARQ = "MSG3_MAX_HARQ"               # Max HARQ retransmissions for MSG3
+    CONTENTION_RESOLUTION_TIMEOUT = "CONTENTION_RESOLUTION_TIMEOUT"  # CR timer expired
+    BACKOFF_BARRING = "BACKOFF_BARRING"           # Access barred due to backoff
+    ACB_BARRING = "ACB_BARRING"                   # Access Class Barring
+    EAB_BARRING = "EAB_BARRING"                   # Extended Access Barring
 
 # ============================
 # Plot style
